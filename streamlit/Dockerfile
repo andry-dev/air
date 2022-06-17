@@ -13,7 +13,7 @@ ARG PYSPARK_VERSION=3.3.0
 RUN pip --no-cache-dir install \
         pyspark==${PYSPARK_VERSION} \
         pyspark[sql]==${PYSPARK_VERSION} \
-        streamlit neuralprophet[all]
+        streamlit neuralprophet[live]
 
 # Image for running
 FROM python:3.10-slim

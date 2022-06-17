@@ -25,14 +25,14 @@ def geocode(street, ip='[::1]', port=8080):
 
 def extract_coordinates(matches):
     if len(matches) == 0:
-        return [69, 420]
+        return [8888, 8888]
 
     return matches[0]['geometry']['coordinates']
 
 
 def coordinates_legal(coordinates):
     # The street is wrong or obscure
-    if coordinates[0] == 69 and coordinates[1] == 420:
+    if coordinates[0] == 8888 and coordinates[1] == 8888:
         return False
 
     # 42.82125541042326, 11.774008325698063
