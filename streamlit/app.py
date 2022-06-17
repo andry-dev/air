@@ -4,9 +4,9 @@ import numpy as np
 
 from pyspark.sql import SparkSession
 
-spark = SparkSession.builder.appName('CirnoWithMustache').getOrCreate()
+spark = SparkSession.builder.appName('AIR').getOrCreate()
 
-st.title('CirnoWithMustache')
+st.title('Accidents in Rome')
 
 df = spark.createDataFrame(data=[
     ('a', 10),
