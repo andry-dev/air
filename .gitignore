@@ -1,0 +1,12 @@
+*.7z
+datasets
+dataset
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.pdf
+*.synctex.gz
+*.swp
+.ipynb_checkpoints
