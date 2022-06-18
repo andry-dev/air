@@ -40,11 +40,11 @@ def coordinates_legal(coordinates):
     # 42.82125541042326, 11.774008325698063
     # 41.220224002262036, 14.029342839702176
     # Check if the coordinates are inside Lazio's bounds
-    if (coordinates[0] <= 11.774008325698063 and coordinates[1] >= 42.82125541042326) or \
-            (coordinates[0] >= 14.029342839702176 and coordinates[1] <= 41.220224002262036):
-        return False
+    if (11.774008325698063 < coordinates[0] and coordinates[0] < 14.029342839702176) and \
+            (41.220224002262036 < coordinates[1] and coordinates[1] < 42.82125541042326):
+        return True
 
-    return True
+    return False
 
 
 def try_parse_number(value):
@@ -165,11 +165,6 @@ def create_clean_dataframe(filepath):
     new_df.to_csv(new_path)
 
     return new_df
-
-
-def chunks(xs, n):
-    n = max(1, n)
-    return (xs[i:i+n] for i in range(0, len(xs), n))
 
 
 def read_csvs(directory):
