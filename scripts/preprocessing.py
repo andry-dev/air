@@ -6,6 +6,7 @@ import math
 import argparse
 
 import requests
+import multiprocessing
 
 from datetime import datetime
 
@@ -18,7 +19,8 @@ def geocode(street, ip='[::1]', port=8080):
         'format': 'geojson'
     }
 
-    req = requests.get(f'http://{ip}:{port}/search', params=payload)
+    req = requests.get(f'http://{ip}:{port}/search',
+                       params=payload, headers={'Connection': 'close'})
 
     return req.json()['features']
 
@@ -43,6 +45,16 @@ def coordinates_legal(coordinates):
         return False
 
     return True
+
+
+def try_parse_number(value):
+    if isinstance(value, int) or isinstance(value, float):
+        return value
+
+    try:
+        return int(value)
+    except ValueError:
+        return None
 
 
 def extract_iso_date(value):
@@ -73,7 +85,17 @@ def clean_data(df: pd.DataFrame):
     for row in df.iterrows():
         missing_time = len(row[1]['DataOraIncidente']) <= 10
         if missing_time:
+            print(f'Dropping row #{row[0]}: Missing date time.')
             invalid_rows.append(row[0])
+            continue
+
+        number_injured = try_parse_number(row[1]['NUM_FERITI'])
+        if number_injured is None:
+            print(f'Dropping row #{row[0]}: NUM_FERITI can\'t be parsed')
+            invalid_rows.append(row[0])
+            continue
+        else:
+            df.at[row[0], 'NUM_FERITI'] = number_injured
 
         row_longitude = row[1]['Longitude']
         row_latitude = row[1]['Latitude']
@@ -93,49 +115,53 @@ def clean_data(df: pd.DataFrame):
 
             if not coordinates_legal(coordinates):
                 invalid_rows.append(row[0])
-                print(f'Invalid coordinates! Dropping row #{row[0]}')
+                print(f'Dropping row #{row[0]}: Invalid coordinates.')
                 continue
 
             df.at[row[0], 'Longitude'] = coordinates[0]
             df.at[row[0], 'Latitude'] = coordinates[1]
         else:
-            if (type(row_latitude) == str):
+            if isinstance(row_latitude, str):
                 df.at[row[0], 'Latitude'] = float(
                     row_latitude.replace(',', '.'))
 
-            if (type(row_longitude) == str):
+            if isinstance(row_longitude, str):
                 df.at[row[0], 'Longitude'] = float(
                     row_longitude.replace(',', '.'))
 
-    df = df[~((df['NUM_FERITI'] == 'Ore Diurne') |
-              (df['NUM_FERITI'] == 'Sufficiente'))]
-
-    df['Deadly'] = df['NUM_MORTI'] > 0
-    df['Injured'] = df['NUM_FERITI'] > 0
-
-    print(f'Dropping {len(invalid_rows)} rows with invalid coordinates.')
+    print(
+        f'Dropping {len(invalid_rows)} rows with invalid data: {invalid_rows}')
     df = df.drop(invalid_rows)
     df = df.drop(columns=['Localizzazione1', 'STRADA1',
                           'Localizzazione2', 'STRADA2', 'Strada02',
                           'Chilometrica', 'DaSpecificare', 'Confermato'])
 
+    # df = df[~((df['NUM_FERITI'] == 'Ore Diurne') |
+    #           (df['NUM_FERITI'] == 'Sufficiente'))]
+
     df['ISODate'] = df['DataOraIncidente'].apply(extract_iso_date)
     df['Month'] = df['DataOraIncidente'].apply(extract_month)
     df['Hour'] = df['DataOraIncidente'].apply(extract_hour)
+    df['Deadly'] = df['NUM_MORTI'] > 0
+    df['Injured'] = df['NUM_FERITI'] > 0
 
     return df
 
 
-def create_clean_dataframe(raw_filepath):
-    print(raw_filepath)
-    new_df = pd.read_csv(raw_filepath, delimiter=';',
-                         on_bad_lines='error', verbose=False)
-
+def generate_clean_filepath(raw_filepath):
     parts = list(raw_filepath.parts)
-    parts[2] = 'clean'
+    parts[1] = 'clean'
     new_path = PurePath()
     for part in parts:
         new_path = new_path / part
+    return new_path
+
+
+def create_clean_dataframe(filepath):
+    new_df = pd.read_csv(filepath, delimiter=';',
+                         on_bad_lines='error', verbose=False)
+
+    new_path = generate_clean_filepath(filepath)
     print(new_path)
 
     new_df = clean_data(new_df)
@@ -144,14 +170,17 @@ def create_clean_dataframe(raw_filepath):
     return new_df
 
 
+def chunks(xs, n):
+    n = max(1, n)
+    return (xs[i:i+n] for i in range(0, len(xs), n))
+
+
 def read_csvs(directory):
-    df = pd.DataFrame()
-    for file in directory.glob('**/*.csv'):
-        new_df = create_clean_dataframe(file)
-
-        df = pd.concat((df, new_df), axis=0)
-
-    return df
+    raw_datasets = list(directory.glob('**/*.csv'))
+    POOL_SIZE = 32
+    with multiprocessing.Pool(POOL_SIZE) as p:
+        res = p.map(create_clean_dataframe, raw_datasets)
+        return pd.concat(res)
 
 
 if __name__ == '__main__':
@@ -159,6 +188,5 @@ if __name__ == '__main__':
     parser.add_argument('dir', type=Path)
     args = parser.parse_args()
 
-    # create_clean_dataframe(directory)
     df = read_csvs(args.dir)
     df.to_csv(args.dir / '../aggregate.csv')
