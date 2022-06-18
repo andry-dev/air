@@ -136,9 +136,6 @@ def clean_data(df: pd.DataFrame):
                           'Localizzazione2', 'STRADA2', 'Strada02',
                           'Chilometrica', 'DaSpecificare', 'Confermato'])
 
-    # df = df[~((df['NUM_FERITI'] == 'Ore Diurne') |
-    #           (df['NUM_FERITI'] == 'Sufficiente'))]
-
     df['ISODate'] = df['DataOraIncidente'].apply(extract_iso_date)
     df['Month'] = df['DataOraIncidente'].apply(extract_month)
     df['Hour'] = df['DataOraIncidente'].apply(extract_hour)
@@ -189,4 +186,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     df = read_csvs(args.dir)
-    df.to_csv(args.dir / '../aggregate.csv')
+    # df = df.drop(columns=['Unnamed: 37'])
+    df.to_csv(args.dir / '../aggregate.csv', index=False)
