@@ -8,4 +8,5 @@ docker run -it --rm --shm-size=1g \
   -v nominatim-data:/var/lib/postgresql/12/main \
   -p 8080:8080 \
   --name nominatim \
+  --ulimit nofile=524288:524288 \
   mediagis/nominatim:4.0
