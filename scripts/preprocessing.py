@@ -44,7 +44,37 @@ def coordinates_legal(coordinates):
             (41.220224002262036 < coordinates[1] and coordinates[1] < 42.82125541042326):
         return True
 
+    # (41.220224002262036 < accidents_df['Latitude']) & (accidents_df['Latitude'] < 42.82125541042326)
+    # (11.774008325698063 < accidents_df['Longitude']) & (accidents_df['Longitude'] < 14.029342839702176)
+
     return False
+
+
+def try_parse_coordinates(row):
+    longitude = row['Longitude']
+    latitude = row['Latitude']
+
+    if (isinstance(longitude, float) and math.isnan(longitude)) or \
+       (isinstance(latitude, float) and math.isnan(latitude)):
+        query_str = row['STRADA1']
+        strada02 = row['Strada02']
+
+        if isinstance(strada02, str) and 'civico' in strada02:
+            civic_number = (row['Chilometrica'])
+            query_str += f' {civic_number}'
+
+        found_matches = geocode(query_str)
+        coordinates = extract_coordinates(found_matches)
+
+        return coordinates
+    else:
+        if isinstance(latitude, str):
+            latitude = float(latitude.replace(',', '.'))
+
+        if isinstance(longitude, str):
+            longitude = float(longitude.replace(',', '.'))
+
+    return (longitude, latitude)
 
 
 def try_parse_number(value):
@@ -97,37 +127,15 @@ def clean_data(df: pd.DataFrame):
         else:
             df.at[row[0], 'NUM_FERITI'] = number_injured
 
-        row_longitude = row[1]['Longitude']
-        row_latitude = row[1]['Latitude']
-        if (type(row_longitude) == float and math.isnan(row_longitude)) or \
-           (type(row_latitude) == float and math.isnan(row_latitude)):
+        coordinates = try_parse_coordinates(row[1])
 
-            query_str = row[1]['STRADA1']
+        if not coordinates_legal(coordinates):
+            invalid_rows.append(row[0])
+            print(f'Dropping row #{row[0]}: Invalid coordinates.')
+            continue
 
-            strada02 = row[1]['Strada02']
-
-            if type(strada02) == str and 'civico' in strada02:
-                civic_number = (row[1]['Chilometrica'])
-                query_str += f' {civic_number}'
-
-            found_matches = geocode(query_str)
-            coordinates = extract_coordinates(found_matches)
-
-            if not coordinates_legal(coordinates):
-                invalid_rows.append(row[0])
-                print(f'Dropping row #{row[0]}: Invalid coordinates.')
-                continue
-
-            df.at[row[0], 'Longitude'] = coordinates[0]
-            df.at[row[0], 'Latitude'] = coordinates[1]
-        else:
-            if isinstance(row_latitude, str):
-                df.at[row[0], 'Latitude'] = float(
-                    row_latitude.replace(',', '.'))
-
-            if isinstance(row_longitude, str):
-                df.at[row[0], 'Longitude'] = float(
-                    row_longitude.replace(',', '.'))
+        df.at[row[0], 'Longitude'] = coordinates[0]
+        df.at[row[0], 'Latitude'] = coordinates[1]
 
     print(
         f'Dropping {len(invalid_rows)} rows with invalid data: {invalid_rows}')
