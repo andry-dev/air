@@ -2,4 +2,4 @@
 
 WORKDIR=/home/jovyan/work
 
-docker run -it --rm --name air_notebook  --security-opt label=disable -v "$(pwd)/BD_Prj.ipynb:${WORKDIR}/BD_Prj.ipynb:rw" -p 8888:8888  jupyter/pyspark-notebook:latest
+podman run -it --rm --name air_notebook  --security-opt label=disable --ulimit nofile=524288:524288 -v "$(pwd)/models:${WORKDIR}/models:rw" -v "$(pwd)/BD_Prj.ipynb:${WORKDIR}/BD_Prj.ipynb:rw" -p 8888:8888 -p 4050:4050 jupyter/pyspark-notebook
